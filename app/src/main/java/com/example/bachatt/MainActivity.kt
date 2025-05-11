@@ -18,7 +18,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import com.example.bachatt.data.local.TaskDatabase
 import com.example.bachatt.data.local.TaskRepositoryImpl
 import com.example.bachatt.domain.usecase.*
@@ -33,7 +35,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        handleTheme()
         val db = TaskDatabase.getDatabase(applicationContext)
         val repository = TaskRepositoryImpl(db.taskDao())
         val viewModel = TaskViewModel(
@@ -70,8 +72,8 @@ class MainActivity : ComponentActivity() {
             if (showDialog) {
                 AlertDialog(
                     onDismissRequest = {},
-                    title = { Text("Listening...") },
-                    text = { Text("Please speak your command.") },
+                    title = { Text("🎙️ Listening...",fontWeight = FontWeight.Bold) },
+                    text = { Text("Speak your command to Bachatt.") },
                     confirmButton = {},
                     dismissButton = {}
                 )
@@ -85,7 +87,10 @@ class MainActivity : ComponentActivity() {
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
 
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+            )
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-IN")
         }
 
@@ -153,11 +158,17 @@ class MainActivity : ComponentActivity() {
     }
 
 
-
     override fun onDestroy() {
         super.onDestroy()
         if (::speechRecognizer.isInitialized) {
             speechRecognizer.destroy()
         }
+    }
+
+
+    protected fun handleTheme() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowCompat.getInsetsController(window, window.decorView)?.isAppearanceLightStatusBars =
+            true
     }
 }

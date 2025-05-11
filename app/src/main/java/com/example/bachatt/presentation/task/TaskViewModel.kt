@@ -22,9 +22,12 @@ class TaskViewModel(
     private val updateTaskUseCase: UpdateTaskUseCase,
     private val deleteTaskUseCase: DeleteTaskUseCase
 ) : ViewModel() {
+
     private val gson = Gson()
+    private val _allTasks = MutableStateFlow<List<Task>>(emptyList())
     private val _uiState = MutableStateFlow(TaskUiState())
     val uiState: StateFlow<TaskUiState> = _uiState.asStateFlow()
+
     private val _isListening = MutableStateFlow(false)
     val isListening: StateFlow<Boolean> = _isListening.asStateFlow()
 
@@ -33,32 +36,51 @@ class TaskViewModel(
     }
 
     init {
-        viewModelScope.launch {
-            getTasksUseCase().collect { tasks ->
-                val filtered = when (_uiState.value.filter) {
-                    "Pending" -> tasks.filter { it.status == "Pending" }
-                    "Completed" -> tasks.filter { it.status == "Completed" }
-                    else -> tasks
-                }
-                _uiState.update { it.copy(tasks = filtered) }
-            }
-        }
+        refreshTasks()
     }
 
     fun setFilter(filter: String) {
         _uiState.update { it.copy(filter = filter) }
+        applyFilter(filter)
+    }
+
+    private fun applyFilter(filter: String) {
+        val filtered = when (filter) {
+            "Pending" -> _allTasks.value.filter { it.status == "Pending" }
+            "Completed" -> _allTasks.value.filter { it.status == "Completed" }
+            else -> _allTasks.value
+        }
+        _uiState.update { it.copy(tasks = filtered) }
     }
 
     fun addTask(task: Task) {
-        viewModelScope.launch { addTaskUseCase(task) }
+        viewModelScope.launch {
+            addTaskUseCase(task)
+            refreshTasks()
+        }
     }
 
     fun updateTask(task: Task) {
-        viewModelScope.launch { updateTaskUseCase(task) }
+        viewModelScope.launch {
+            updateTaskUseCase(task)
+            refreshTasks()
+        }
     }
 
     fun deleteTask(task: Task) {
-        viewModelScope.launch { deleteTaskUseCase(task) }
+        viewModelScope.launch {
+            deleteTaskUseCase(task)
+            refreshTasks()
+        }
+    }
+
+    private fun refreshTasks() {
+        viewModelScope.launch {
+            getTasksUseCase().collect { tasks ->
+                _allTasks.value = tasks
+                applyFilter(_uiState.value.filter)
+            }
+        }
     }
 
     fun onVoiceCommandReceived(command: String) {
@@ -69,8 +91,10 @@ class TaskViewModel(
                     body = GeminiRequest(
                         contents = listOf(
                             GeminiContent(
-                                parts = listOf(GeminiPart(
-                                    text = command + "\n\n\n" + """You are a task management assistant. Your job is to extract structured task data from the given input. Respond only with a JSON object, nothing else.
+                                parts = listOf(
+                                    GeminiPart(
+                                        text = command + "\n\n\n" + """You are a task management assistant. Your job is to extract structured task data from the given input. Respond only with a JSON object, nothing else.
+
 There are 3 types of operations:
 1. "CREATE": When the user wants to add a new task.
 2. "UPDATE": When the user wants to change the title, due date, or status of an existing task.
@@ -88,17 +112,21 @@ UPDATE: { "operation": "UPDATE", "title": "Pay Bills", "dueAt": "15-05-2025", "s
 DELETE: { "operation": "DELETE", "title": "Pay Bills" }
 
 Do not return any explanation or formatting. Your reply must be a valid JSON object. Use 2025 as the year for any due date."""
-                                ))
+                                    )
+                                )
                             )
                         )
                     )
                 )
 
-                val reply = cleanJson(response.candidates.firstOrNull()
-                    ?.content?.parts?.firstOrNull()?.text ?: return@launch)
+                val reply = cleanJson(
+                    response.candidates.firstOrNull()
+                        ?.content?.parts?.firstOrNull()?.text ?: return@launch
+                )
 
                 Log.d("Gemini", "AI Cleaned JSON: $reply")
                 parseGeminiReply(reply)
+
             } catch (e: Exception) {
                 Log.e("VoiceCommandError", "Error while calling Gemini API", e)
                 e.printStackTrace()
@@ -115,6 +143,7 @@ Do not return any explanation or formatting. Your reply must be a valid JSON obj
             val title = taskMap["title"]?.trim().orEmpty()
             val dueAtStr = taskMap["dueAt"]?.trim().orEmpty()
             val status = taskMap["status"]?.uppercase() ?: "PENDING"
+
             if (title.isBlank()) return
 
             val dueDate = if (dueAtStr.matches(Regex("\\d{2}-\\d{2}-\\d{4}")))
@@ -123,11 +152,18 @@ Do not return any explanation or formatting. Your reply must be a valid JSON obj
 
             when (operation) {
                 "CREATE" -> {
-                    val task = Task(title = title, dueDate = dueDate ?: System.currentTimeMillis(), status = "Pending")
+                    val task = Task(
+                        title = title,
+                        dueDate = dueDate ?: System.currentTimeMillis(),
+                        status = "Pending"
+                    )
                     addTask(task)
                 }
+
                 "UPDATE" -> {
-                    val existing = _uiState.value.tasks.find { it.title.equals(title, ignoreCase = true) }
+                    val existing = _uiState.value.tasks.find {
+                        it.title.equals(title, ignoreCase = true)
+                    }
                     existing?.let {
                         val updated = it.copy(
                             title = title,
@@ -137,14 +173,14 @@ Do not return any explanation or formatting. Your reply must be a valid JSON obj
                         updateTask(updated)
                     }
                 }
+
                 "DELETE" -> {
-                    val task = _uiState.value.tasks.find { it.title.equals(title, ignoreCase = true) }
+                    val task = _uiState.value.tasks.find {
+                        it.title.equals(title, ignoreCase = true)
+                    }
                     task?.let { deleteTask(it) }
                 }
-
-
             }
-
         } catch (e: Exception) {
             Log.e("ParseError", "Failed to parse Gemini JSON", e)
         }
