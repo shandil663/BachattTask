@@ -130,7 +130,8 @@ Do not return any explanation or formatting. Your reply must be a valid JSON obj
             } catch (e: Exception) {
                 Log.e("VoiceCommandError", "Error while calling Gemini API", e)
                 e.printStackTrace()
-                val fallback = Task(title = "Error", dueDate = System.currentTimeMillis(), status = "Pending")
+                val fallback =
+                    Task(title = "Error", dueDate = System.currentTimeMillis(), status = "Pending")
                 addTask(fallback)
             }
         }

@@ -53,7 +53,7 @@ fun TaskScreen(viewModel: TaskViewModel) {
         Spacer(modifier = Modifier.height(20.dp))
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item { Spacer(modifier = Modifier.height(16.dp))}
+            item { Spacer(modifier = Modifier.height(16.dp)) }
             items(uiState.tasks) { task ->
                 TaskItem(
                     task = task,
@@ -65,13 +65,18 @@ fun TaskScreen(viewModel: TaskViewModel) {
                     viewModel.updateTask(updated)
                 }
             }
-            item { Spacer(modifier = Modifier.height(16.dp))}
+            item { Spacer(modifier = Modifier.height(16.dp)) }
         }
     }
 }
 
 @Composable
-fun FilterChip(label: String, selected: String, onClick: (String) -> Unit, color: Color = Color.Gray) {
+fun FilterChip(
+    label: String,
+    selected: String,
+    onClick: (String) -> Unit,
+    color: Color = Color.Gray
+) {
     val isSelected = label == selected
     val containerColor = if (isSelected) color.copy(alpha = 0.2f) else Color.Transparent
     val textColor = if (isSelected) color else color.copy(alpha = 0.7f)

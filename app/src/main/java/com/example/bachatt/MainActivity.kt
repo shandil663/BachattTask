@@ -72,7 +72,7 @@ class MainActivity : ComponentActivity() {
             if (showDialog) {
                 AlertDialog(
                     onDismissRequest = {},
-                    title = { Text("🎙️ Listening...",fontWeight = FontWeight.Bold) },
+                    title = { Text("🎙️ Listening...", fontWeight = FontWeight.Bold) },
                     text = { Text("Speak your command to Bachatt.") },
                     confirmButton = {},
                     dismissButton = {}
